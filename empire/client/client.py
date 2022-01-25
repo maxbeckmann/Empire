@@ -350,9 +350,12 @@ class EmpireCli(object):
                     menu_state.current_menu.execute_shortcut(cmd_line[0], cmd_line[1:])
 
 
-def start():
+def start(interactive: bool = True):
     try:
         empire = EmpireCli()
-        empire.main()
+        if interactive:
+            empire.main()
+        else:
+            empire.non_interactive_main()
     finally:
         state.shutdown()

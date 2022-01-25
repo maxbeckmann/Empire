@@ -146,3 +146,9 @@ def truncate(text, width=50):
     :return: truncated text if necessary else the same text
     """
     return (text[:width] + '..') if len(text) > width else text
+
+def shell_enumerate(list, delimiter: str ='  '):
+    """
+    Build a string well-parseable by (Linux) shell. 
+    """
+    return delimiter.join(list)
