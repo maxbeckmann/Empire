@@ -5,13 +5,15 @@ from empire.client.src.api import ServerConnection, ListenerOption, ListenerType
 from empire.client.src.utils import table_util, print_util
 from empire.cli import empire
 
-app = empire.EmpireTyper()
+app = typer.Typer()
 
 @app.callback(invoke_without_command=True)
 def _common(
         ctx: typer.Context,
     ):
-    pass
+    """
+    Manage and interact with listeners. 
+    """
 
 args = [typer.Option("foo"), typer.Option("bar")]
 
@@ -83,20 +85,6 @@ def args(
             typer.echo(f"Unknown listener argument '{arg}'")
             raise typer.Exit(1)
 
-# @app.command()
-# def create(
-#         ctx: typer.Context, 
-#         listener_type: str, 
-#         name: Optional[str] = None
-#     ):
-#     srv: ServerConnection = ctx.obj.empire_api
-#         
-#     if name is None:
-#         active_listeners = srv.get_active_listeners()
-#         
-#     srv.create_listener(listener_type, {"Name": "test", "Port": 80})
-#     typer.echo(name)
-
 @app.command()
 def remove(
         ctx: typer.Context, 
@@ -120,47 +108,92 @@ def stop(
     ):
     pass
 
-class CreateCommandGenerator(typer.Typer):
-    """
-    Auto-generated group of create commands. 
-    """
-    def __init__(self, listener_types: List[ListenerType]):
-        super().__init__()
-        commands = self._generate_commands(listener_types)
-        self.registered_commands += list(commands)
+import click, inflection
+
+class RemoteCommand(click.Command):
     
-    def _generate_commands(self, listener_types):
-        for listener_type in listener_types:
-            
-            @functools.wraps(CreateCommandGenerator._create)
-            def wrapper(*args, **kwargs):
-                CreateCommandGenerator._create(*args, **kwargs)
-            
-            wrapper.__signature__ = self._generate_signature(listener_type)
-            
-            yield typer.models.CommandInfo(callback=wrapper, name=listener_type.name, help=listener_type.description)
+    def __init__(self, name):
+        super().__init__(name)
+        self._normalized_option_names = dict()
+        self._params = None
+        self.callback = self._generate_callback()
     
-    def _generate_signature(self, listener_type):
-        params = []
-        option: ListenerOption
-        for option in sorted(listener_type.options, key=lambda x: not x.required):
+    def _generate_callback(self):
+        return click.pass_context(self.create)
+    
+    def _normalize_and_cache_option_name(self, name):
+        normalized_name = inflection.dasherize(inflection.underscore(name))
+        cache_hit = self._normalized_option_names.get(normalized_name, None)
+        assert cache_hit is None or name == cache_hit # assert that there is no collision introduced by normalization
+        
+        self._normalized_option_names[normalized_name] = name # cache the mapping from normalized_name -> name
+        return normalized_name
+    
+    def _resolve_click_option_name(self, click_name):
+        normalized_name = inflection.dasherize(click_name)
+        return self._normalized_option_names[normalized_name]
+    
+    def create(
+        self,
+        ctx: typer.Context, 
+        name, 
+        **kwargs
+    ):
+        srv: ServerConnection = ctx.obj.empire_api
+        
+        options = {"Name": name}
+        for click_name, value in kwargs.items():
+            option = self._resolve_click_option_name(click_name)
+            if value:
+                options[option] = str(value)
+        
+        srv.create_listener(self.name, options)
+        typer.echo(name)
+    
+    def _fetch_remote_params(self, ctx):
+        rv = []
+        
+        srv: ServerConnection = ctx.obj.empire_api
+        listener_type = srv.get_listener_details(self.name)
+        
+        opt: ListenerOption
+        for opt in sorted(listener_type.options, key=lambda x: not (x.required and not x.value)):
             
-            param_info_type = typer.Argument if (option.required and not option.value )else typer.Option
-            
-            param = inspect.Parameter(
-                    option.name, 
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD, 
-                    default=param_info_type(option.value, help=option.description),
-                    annotation=str,
+            normalized_name = self._normalize_and_cache_option_name(opt.name)
+            # print(opt.name, repr(opt.value))
+            option = click.Option(
+                    [f"--{normalized_name}"], 
+                    # required=opt.required, 
+                    # default= opt.value or None, 
+                    # show_default=True, 
+                    help=opt.description
                 )
-            params += [param]
-        return inspect.Signature(params)
+            rv += [option]
             
-    @staticmethod
-    def _create(*args, **kwargs):
-        print("hi there")
-        print(args, kwargs)
+        help_option = self.get_help_option(ctx)
+        if help_option is not None:
+            rv = rv + [help_option]
+        return rv
+    
+    def get_params(self, ctx):
+        if not self._params:
+            self._params = self._fetch_remote_params(ctx)
+        return self._params
+        
+class RemoteGroup(click.Group):
+    
+    def list_commands(self, ctx):
+        srv: ServerConnection = ctx.obj.empire_api
+        listener_types = srv.get_listener_types()
+        return sorted(listener_types)
+    
+    def get_command(self, ctx, cmd_name):
+        return RemoteCommand(cmd_name)
 
-print(app.empire_conf)
-
-app.add_typer(CreateCommandGenerator([ListenerType("author", "category", "comments", "description", "lstnr", [ListenerOption("name", "description", False, "strict", "suggested_values", "value")])]), name="create")
+app.add_typer(
+    typer.Typer(
+            name="create", 
+            cls=RemoteGroup, 
+            help="Create a new listener instance."
+        )
+    )
