@@ -18,6 +18,14 @@ def fetch_listener_type_details(ctx, name):
     srv: ServerConnection = ctx.obj.empire_api
     return srv.get_listener_details(name)
 
+@click.pass_context
+def fetch_listener_list(ctx):
+    srv: ServerConnection = ctx.obj.empire_api
+    return srv.get_active_listeners()
+
+@click.pass_context
+def fetch_listener_details(ctx, name):
+    pass
 
 @app.callback(no_args_is_help=True)
 def _common(
@@ -33,8 +41,7 @@ def list_running_listeners(ctx: typer.Context, all: bool = False):
     """
     Enumerate all active listeners. 
     """
-    srv: ServerConnection = ctx.obj.empire_api
-    active_listeners = srv.get_active_listeners()
+    active_listeners = fetch_listener_list()
     if not all:
         active_listeners = filter(lambda x: x.enabled == True, active_listeners)
     
@@ -63,38 +70,6 @@ def list_listener_types(ctx: typer.Context,):
     typer.echo(output)
 
 @app.command()
-def args(
-        ctx: typer.Context, 
-        name: str, 
-        arg: Optional[str] = None, 
-        required: bool = False, 
-        value: bool = False
-    ):
-    srv: ServerConnection = ctx.obj.empire_api
-    
-    result = srv.get_listener_details(name)
-    arguments = result.options
-    
-    if arg is None:
-        headers = ["NAME", "REQUIRED", "VALUE",]
-        table = [headers]
-        for argument in sorted(arguments, key=lambda x: not x.required):
-            table += [[
-                argument.name,
-                argument.required,
-                argument.value,
-            ]]
-        table_util.print_table(table)
-    else:
-        filtered_args = [argument for argument in arguments if argument.name == arg]
-        if len(filtered_args) == 1:
-            selected_arg = filtered_args[0]
-            print(selected_arg)
-        else: # len(filtered_args) == 0
-            typer.echo(f"Unknown listener argument '{arg}'")
-            raise typer.Exit(1)
-
-@app.command()
 def remove(
         ctx: typer.Context, 
         listener_name: str
@@ -104,18 +79,24 @@ def remove(
     typer.echo(listener_name)
 
 @app.command()
-def start(
+def enable(
         ctx: typer.Context, 
         listener_name: str
     ):
-    pass
+    """
+    Start a disabled listener instance. 
+    """
+    raise NotImplementedError("This is not supported yet.")
 
 @app.command()
-def stop(
+def disable(
         ctx: typer.Context, 
         listener_name: str
     ):
-    pass
+    """
+    Disable a disabled listener instance. 
+    """
+    raise NotImplementedError("This is not supported yet.")
 
 @app.remote_component(fetch_listener_type_list, fetch_listener_type_details)
 def create(
