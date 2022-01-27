@@ -4,10 +4,11 @@ from typing import Optional
 from dataclasses import dataclass
 from empire.client.src import api
 from empire.client.src.config import Config, Path
-from empire.cli import listener
+from empire.cli import listener, stager
 
 app = typer.Typer()
 app.add_typer(listener.app, name="listener")
+app.add_typer(stager.app, name="stager")
 
 
 def _get_invocation_name():
@@ -66,11 +67,14 @@ def login(
 
 @app.command()
 def logout():
+    """
+    Logout from your teamserver 
+    """
     TokenFile().remove()
     typer.echo("OK")
     
 
-@app.callback(invoke_without_command=True)
+@app.callback(invoke_without_command=True, no_args_is_help=True)
 def _common(
         ctx: typer.Context,
         token: str = typer.Option(None, envvar='EMPIRE_TOKEN', help='Empire server access token'),
