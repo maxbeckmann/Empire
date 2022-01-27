@@ -1,7 +1,5 @@
 from typing import Optional, List
-import typer
-import functools, inspect
-import click, inflection
+import typer, click
 from empire.client.src.api import ServerConnection, ListenerOption, ListenerType
 from empire.client.src.utils import table_util, print_util
 from empire.cli import empire
@@ -120,7 +118,6 @@ def stop(
     pass
 
 @app.remote_component(fetch_listener_type_list, fetch_listener_type_details)
-@click.pass_context
 def create(
         ctx: typer.Context, 
         listener_type: str, 

@@ -1,4 +1,4 @@
-from typer import Typer
+from typer import Typer, Context
 import click, inflection, inspect
 
 class EmpireTyper(Typer):
@@ -98,7 +98,16 @@ class RemoteComponentGroupBase(click.Group):
         # TODO: Currently, the server only allows us to gather a list of component names -or- the details for a single component with one request. 
         # This forces us to query the server once for each component we want to know more about than its name alone. 
         # Maybe introduce an API endpoint which allows us to grab all high-level information about a component needed for CLI generation in one go, to lower the volume of requests. 
-        return RemoteComponentCommand(component_name, component_details=self.fetch_component_details(component_name), callback=self.get_callback())
+        
+        component_details=self.fetch_component_details(component_name)
+        callback = self.get_callback()
+        
+        # mimick typer's behavior by implicitly passing the context to the callback, if the first parameter is of type `Context`
+        callback_first_param = next(iter(inspect.signature(callback).parameters.values())) # get the first parameter
+        if callback_first_param.annotation is Context:
+            callback = click.pass_context(callback)
+        
+        return RemoteComponentCommand(component_name, component_details, callback)
     
     @staticmethod
     def fetch_component_list():
@@ -110,4 +119,4 @@ class RemoteComponentGroupBase(click.Group):
     
     @staticmethod
     def get_callback():
-        return create
+        raise NotImplementedError()
