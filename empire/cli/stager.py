@@ -1,11 +1,22 @@
-from typing import Optional, List
-import typer
+import typer, click, base64
+from pathlib import Path
 from empire.client.src.api import ServerConnection
 from empire.client.src.utils import print_util
+from empire.cli import empire
 
 import tabulate
 
-app = typer.Typer()
+app = empire.EmpireTyper()
+
+@click.pass_context
+def fetch_stager_list(ctx):
+    srv: ServerConnection = ctx.obj.empire_api
+    return srv.get_stagers()
+
+@click.pass_context
+def fetch_stager_details(ctx, stager_name):
+    srv: ServerConnection = ctx.obj.empire_api
+    return srv.get_stager_details(stager_name)
 
 @app.callback(no_args_is_help=True)
 def _common(
@@ -21,20 +32,24 @@ def list_stagers(ctx: typer.Context,):
     """
     Enumerate available stagers. 
     """
-    srv: ServerConnection = ctx.obj.empire_api
-    stagers = srv.get_stagers()
+    stagers = fetch_stager_list()
     output = print_util.shell_enumerate(stagers)
     typer.echo(output)
 
-@app.command("create", no_args_is_help=True)
-def instantiate_stager(ctx: typer.Context, name: str):
+@app.remote_component(fetch_stager_list, fetch_stager_details, name="create")
+def instantiate_stager(ctx: typer.Context, name: str, options):
     """
-    Create and download a stager instance. 
+    Create and download a new stager instance. 
     """
     srv: ServerConnection = ctx.obj.empire_api
-    result = srv.get_stager_details(name)
-    print(result)
-    exit()
-    result = srv.create_stager(name, {})
-    print(result)
-    typer.echo(listener_types)
+    result = srv.create_stager(name, options)
+    stager = base64.b64decode(result[name]['Output'])
+    
+    out_file = options.get('OutFile', None)
+    if out_file is None:
+        typer.echo(stager)
+    else:
+        out_path = Path(out_file).absolute()
+        with open(out_path, 'wb') as stream:
+            stream.write(stager)
+        typer.echo(f"{name}: {out_path}")
