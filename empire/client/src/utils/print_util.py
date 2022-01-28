@@ -1,7 +1,7 @@
 import os
 import textwrap
 import time
-
+import sys
 
 def color(string_name, color_name=None):
     """
@@ -147,8 +147,10 @@ def truncate(text, width=50):
     """
     return (text[:width] + '..') if len(text) > width else text
 
-def shell_enumerate(list, delimiter: str ='  '):
+def shell_enumerate(list, delimiter: str = None):
     """
     Build a string well-parseable by (Linux) shell. 
     """
+    if delimiter is None:
+        delimiter = '  ' if sys.stdout.isatty() else '\n'
     return delimiter.join(list)
