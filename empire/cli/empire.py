@@ -1,5 +1,12 @@
-from typer import Typer, Context
 import click, inflection, inspect
+from typer import Typer, Context
+from dataclasses import dataclass
+from empire.client.src import config, api
+
+@dataclass
+class State:
+    empire_conf: config.Config
+    empire_api: api.ServerConnection
 
 class EmpireTyper(Typer):
     

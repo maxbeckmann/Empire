@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 import typer, urllib3
 from typing import Optional
-from dataclasses import dataclass
 from empire.client.src import api
 from empire.client.src.config import Config, Path
-from empire.cli import listener, stager, agent
+from empire.cli import empire, listener, stager, agent
 
 app = typer.Typer()
 app.add_typer(listener.app, name="listener")
@@ -17,7 +16,7 @@ def _get_invocation_name():
 
 
 class TokenFile:
-    def __init__(self, location: Path = Path(".connection")):
+    def __init__(self, location: Path = Path.home() / ".config/empire/.connection"):
         self.location = location
     
     def load(self) -> str:
@@ -28,16 +27,13 @@ class TokenFile:
         return result
         
     def store(self, token: str):
+        self.location.parent.mkdir(exist_ok=True, parents=True)
         with open(self.location, 'w') as stream:
             stream.write(token)
     
     def remove(self):
         self.location.unlink()
 
-@dataclass
-class State:
-    empire_conf: Config
-    empire_api: api.ServerConnection
 
 @app.command()
 def login(
@@ -110,7 +106,7 @@ def _common(
     
     empire_api = api.ServerConnection(host, port, token)
     
-    ctx.obj = State(empire_conf, empire_api)
+    ctx.obj = empire.State(empire_conf, empire_api)
 
 
 if __name__ == '__main__':
