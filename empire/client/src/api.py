@@ -11,6 +11,9 @@ class AuthenticationToken(str):
 class AuthenticationError(RuntimeError):
     pass
 
+class ApiError(RuntimeError):
+    pass
+
 @dataclass
 class BaseOption:
     name: str
@@ -125,6 +128,45 @@ class StagerType(BaseType):
         )
         
 
+@dataclass
+class Agent:
+    ID: int
+    session_id: str
+    listener: str
+    name: str
+    language: str
+    language_version: str
+    delay: str
+    jitter: str
+    external_ip: str
+    internal_ip: str
+    username: str
+    high_integrity: bool
+    process_name: str
+    process_id: int
+    hostname: str
+    os_details: str
+    session_key: bytes
+    nonce: int
+    checkin_time: str
+    lastseen_time: str
+    parent: str
+    children: str
+    servers: str
+    profile: str
+    functions: str
+    kill_date: str
+    working_hours: str
+    lost_limit: str
+    stale: bool
+    notes: str
+    architecture: str
+    proxy: str
+    
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
 class ServerConnection:
     DEFAULT_PORT: int = 1337
     
@@ -151,6 +193,8 @@ class ServerConnection:
             response_ok = True
         elif response.status_code == 401:
             raise AuthenticationError(response)
+        elif response.status_code == 404:
+            raise ApiError(response)
         return response_ok
     
     def _check_and_parse_response(self, response, expected_payload_type=dict, key=None):
@@ -195,14 +239,15 @@ class ServerConnection:
                                 verify=False,
                                 params={'token': self.token})
         
-        listeners = [Listener.from_dict(x) for x in response.json()['listeners']]
+        listeners = self._check_and_parse_response(response, Listener, key="listeners")
         return listeners
     
     def get_listener_types(self):
         response = requests.get(url=f'{self.host}:{self.port}/api/listeners/types',
                                 verify=False,
                                 params={'token': self.token})
-        return response.json()['types']
+                                
+        return self._check_and_parse_response(response, key="types")
     
     def get_listener_details(self, listener_type: str):
         response = requests.get(url=f'{self.host}:{self.port}/api/listeners/options/{listener_type}',
@@ -258,5 +303,47 @@ class ServerConnection:
                                  json=options,
                                  verify=False,
                                  params={'token': self.token})
+
+        stager_dict = self._check_and_parse_response(response, key=stager_name)
+        if stager_dict is None:
+            raise ApiError(f"failed to create stager '{stager_name}'")
+        return stager_dict
     
+    def get_agents(self):
+        response = requests.get(url=f'{self.host}:{self.port}/api/agents',
+                                verify=False,
+                                params={'token': self.token})
+        
+        agents_dict = self._check_and_parse_response(response, Agent, key="agents")
+        
+        return agents_dict
+    
+    def kill_agent(self, agent_name: str):
+        response = requests.post(url=f'{self.host}:{self.port}/api/agents/{agent_name}/kill',
+                                 verify=False,
+                                 params={'token': self.token})
+        return self._check_and_get_status_message(response)
+        
+    def agent_shell(self, agent_name, shell_cmd: str):
+        response = requests.post(url=f'{self.host}:{self.port}/api/agents/{agent_name}/shell',
+                                 json={'command': shell_cmd},
+                                 verify=False,
+                                 params={'token': self.token})
+        
+        assert self._check_response_ok(response)
+        task_id = int(response.json()['taskID'])        
+        return task_id
+    
+    def get_task_result(self, agent_name, task_id):
+        response = requests.get(url=f'{self.host}:{self.port}/api/agents/{agent_name}/task/{task_id}',
+                                verify=False,
+                                params={'token': self.token})
+        
+        return response.json()
+    
+    def get_agent_result(self, agent_name):
+        response = requests.get(url=f'{self.host}:{self.port}/api/agents/{agent_name}/results',
+                                verify=False,
+                                params={'token': self.token})
+        
         return response.json()

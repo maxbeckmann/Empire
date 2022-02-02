@@ -4,11 +4,12 @@ from typing import Optional
 from dataclasses import dataclass
 from empire.client.src import api
 from empire.client.src.config import Config, Path
-from empire.cli import listener, stager
+from empire.cli import listener, stager, agent
 
 app = typer.Typer()
 app.add_typer(listener.app, name="listener")
 app.add_typer(stager.app, name="stager")
+app.add_typer(agent.app, name="agent")
 
 
 def _get_invocation_name():
@@ -116,6 +117,6 @@ if __name__ == '__main__':
     try:
         app() 
     except api.AuthenticationError as ex:
-        typer.echo(f"Authentication error. Try '{_get_invocation_name()} connect --help' for further advice.")
+        typer.echo(f"Authentication error. Try '{_get_invocation_name()} login --help' for further advice.")
     except RuntimeError as ex:
         typer.echo(f"error: {ex}")    

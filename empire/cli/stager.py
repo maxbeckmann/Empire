@@ -18,17 +18,16 @@ def fetch_stager_details(ctx, stager_name):
     srv: ServerConnection = ctx.obj.empire_api
     return srv.get_stager_details(stager_name)
 
+
 @app.callback(no_args_is_help=True)
-def _common(
-        ctx: typer.Context,
-    ):
+def _common():
     """
     List and instantiate stagers. 
     """
 
 @app.command("ls")
 @app.command("list")
-def list_stagers(ctx: typer.Context,):
+def list_stagers():
     """
     Enumerate available stagers. 
     """
@@ -43,7 +42,7 @@ def instantiate_stager(ctx: typer.Context, name: str, options):
     """
     srv: ServerConnection = ctx.obj.empire_api
     result = srv.create_stager(name, options)
-    stager = base64.b64decode(result[name]['Output'])
+    stager = result['Output']
     
     out_file = options.get('OutFile', None)
     if out_file is None:
@@ -51,5 +50,5 @@ def instantiate_stager(ctx: typer.Context, name: str, options):
     else:
         out_path = Path(out_file).absolute()
         with open(out_path, 'wb') as stream:
-            stream.write(stager)
-        typer.echo(f"{name}: {out_path}")
+            stream.write(base64.b64decode(stager))
+        typer.echo(f"created '{name}' → {out_path}")

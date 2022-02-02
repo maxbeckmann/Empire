@@ -2237,6 +2237,7 @@ def start_restful_api(empireMenu: MainMenu, suppress=False, headless=False, user
 
 
 def start_sockets(empire_menu: MainMenu, ip='0.0.0.0', port: int = 5000, suppress: bool = False):
+    port = 1337
     app = Flask(__name__)
     app.json_encoder = MyJsonEncoder
     socketio = SocketIO(app, cors_allowed_origins="*", json=flask.json, async_mode="threading")
