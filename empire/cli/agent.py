@@ -78,4 +78,26 @@ def run_shell_on_agent(ctx: typer.Context, name: str, command: str):
     
     output = result['results']
     typer.echo(output)
+
+@app.command("upload", no_args_is_help=True)
+def upload_file(ctx: typer.Context, name: str, path: str):
+    """
+    Upload a file to the host running an agent. 
+    """
+    srv: ServerConnection = ctx.obj.empire_api
     
+    with open(path, 'rb') as stream:
+        data = stream.read()
+    
+    success = srv.agent_upload_file(name, path, data)
+    assert success
+
+@app.command("download", no_args_is_help=True)
+def upload_file(ctx: typer.Context, name: str, path: str):
+    """
+    Download a file from the host running an agent. 
+    """
+    srv: ServerConnection = ctx.obj.empire_api
+    
+    success = srv.agent_download_file(name, path)
+    assert success

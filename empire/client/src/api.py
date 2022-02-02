@@ -1,6 +1,6 @@
 import requests
 from pathlib import Path
-import yaml
+import yaml, base64
 from typing import Dict, List
 from datetime import datetime
 from dataclasses import dataclass
@@ -347,3 +347,20 @@ class ServerConnection:
                                 params={'token': self.token})
         
         return response.json()
+    
+    def agent_upload_file(self, agent_name: str, file_name: str, file_data: bytes):
+        file_data = base64.b64encode(file_data).decode("UTF-8")
+        response = requests.post(url=f'{self.host}:{self.port}/api/agents/{agent_name}/upload',
+                                 json={'filename': file_name, 'data': file_data},
+                                 verify=False,
+                                 params={'token': self.token})
+    
+        return self._check_and_get_status_message(response)
+    
+    def agent_download_file(self, agent_name: str, file_name: str):
+        response = requests.post(url=f'{self.host}:{self.port}/api/agents/{agent_name}/download',
+                                 json={'filename': file_name},
+                                 verify=False,
+                                 params={'token': self.token})
+    
+        return self._check_and_get_status_message(response)
